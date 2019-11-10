@@ -1,11 +1,11 @@
-classdef HW4_Utils
+classdef Helper_Utils
 % Helper functions to load, display data, and compute feature vectors
 % By: Minh Hoai Nguyen (minhhoai@cs.stonybrook.edu)
 % Created: 11-Feb-2016
 % Last modified: 30-Sep-2018
 
     properties (Constant)        
-        dataDir = '../hw4';
+        dataDir = '../project';
         
         % Anotated upper bodies have different sizes. To train a classifier, we need to normalize to
         % a standard size
@@ -20,15 +20,15 @@ classdef HW4_Utils
         % Show some random images and upper body annotation
         function demo1()
             fprintf('Display random images with upper body annotation\n');
-            load(sprintf('%s/trainAnno.mat', HW4_Utils.dataDir), 'ubAnno');            
+            load(sprintf('%s/trainAnno.mat', Helper_Utils.dataDir), 'ubAnno');            
             nR = 3; nC = 4;
             idxs = randsample(length(ubAnno), nR*nC);            
             for i=1:nR*nC
                 idx = idxs(i);
-                im = sprintf('%s/trainIms/%04d.jpg', HW4_Utils.dataDir, idx);
+                im = sprintf('%s/trainIms/%04d.jpg', Helper_Utils.dataDir, idx);
                 subplot(nR, nC, i); imshow(im);
                 if ~isempty(ubAnno{idx})
-                    HW4_Utils.drawRects(ubAnno{idx});
+                    Helper_Utils.drawRects(ubAnno{idx});
                 end;                    
             end
         end;
@@ -36,7 +36,7 @@ classdef HW4_Utils
         % Display HOG features for random positive and negative images
         function demo2()
             fprintf('Display a random training images and correspond HOG features\n');            
-            [trD, trLb, trRegs]   = HW4_Utils.getPosAndRandomNegHelper('train');
+            [trD, trLb, trRegs]   = Helper_Utils.getPosAndRandomNegHelper('train');
             
             nR = 4; nC = 4;
             idxs = randsample(length(trLb), nR*nC);            
@@ -67,16 +67,16 @@ classdef HW4_Utils
         % Positive instances: all annotated upper bodies
         % Negative instances: random image patches
         function [trD, trLb, valD, valLb, trRegs, valRegs] = getPosAndRandomNeg()
-            cacheFile = sprintf('%s/trainval_random.mat', HW4_Utils.dataDir);
+            cacheFile = sprintf('%s/trainval_random.mat', Helper_Utils.dataDir);
             if exist(cacheFile, 'file')
                 load(cacheFile);
             else
-                [trD, trLb, trRegs]   = HW4_Utils.getPosAndRandomNegHelper('train');
-                [valD, valLb, valRegs] = HW4_Utils.getPosAndRandomNegHelper('val');
+                [trD, trLb, trRegs]   = Helper_Utils.getPosAndRandomNegHelper('train');
+                [valD, valLb, valRegs] = Helper_Utils.getPosAndRandomNegHelper('val');
                 save(cacheFile, 'trD', 'trLb', 'valD', 'valLb', 'trRegs', 'valRegs');
             end;
-            trD = HW4_Utils.l2Norm(double(trD));
-            valD = HW4_Utils.l2Norm(double(valD));
+            trD = Helper_Utils.l2Norm(double(trD));
+            valD = Helper_Utils.l2Norm(double(valD));
         end
 
         % Perform sliding window detection and return a list of rectangular regions with scores
@@ -84,7 +84,7 @@ classdef HW4_Utils
         % rects: 5*k matrix for k detections, sorted by detection scores
         %   rects(:,i) is left, top, right, bottom, detection score
         function rects = detect(im, w, b, shldDisplay)
-            winSz = HW4_Utils.normImSz;
+            winSz = Helper_Utils.normImSz;
             
             smallestUbSize = 45; % desired smallest upper body size we can detect
             biggestUbSize = 310; % desired biggest  upper body size we can detect
@@ -107,12 +107,12 @@ classdef HW4_Utils
                 scaleIm = imresize(grayIm, scale);
                 
                 % Compute the HOG image
-                hogIm = vl_hog(im2single(scaleIm), HW4_Utils.hogCellSz);
+                hogIm = vl_hog(im2single(scaleIm), Helper_Utils.hogCellSz);
                 
                 % Consider multiple subwindows of size winSz4HogIm with step size 1 (i.e, sliding window)
                 % ML_SlideWin is an efficient way to do sliding window. It considers multiple 
                 % subwindows at the same time, avoiding for loop. 
-                winSz4HogIm = [winSz/HW4_Utils.hogCellSz, size(hogIm,3)];
+                winSz4HogIm = [winSz/Helper_Utils.hogCellSz, size(hogIm,3)];
                 stepSz = [1 1 1];
                 obj = ML_SlideWin(hogIm, winSz4HogIm, stepSz);
                 
@@ -120,14 +120,14 @@ classdef HW4_Utils
                 [topLefts_s, scores_s] = deal(cell(1, nBatch));
                 for i=1:nBatch
                     [hogFeats, topLefts_s{i}] = obj.getBatch(i);
-                    D = HW4_Utils.l2Norm(hogFeats);
+                    D = Helper_Utils.l2Norm(hogFeats);
                     scores_s{i} = D'*w + b;
                 end;
                 scores_s   = cat(1, scores_s{:});
                 topLefts_s = cat(2, topLefts_s{:});             
                 
                 % From HOG image coordinate to scaled image coordinate
-                topLefts_s = (topLefts_s([2,1],:)-1)*HW4_Utils.hogCellSz + 1;                                
+                topLefts_s = (topLefts_s([2,1],:)-1)*Helper_Utils.hogCellSz + 1;                                
                 rects_s = [topLefts_s; topLefts_s + repmat(winSz' -1, 1, size(topLefts_s,2))];
                                 
                 % convert back to coordinate of scale image                
@@ -140,12 +140,12 @@ classdef HW4_Utils
             
             % Perform non-maxima suppression, i.e., remove detections that have high overlap (0.5)
             % with another detection with a higher score            
-            rects = HW4_Utils.nms(rects, 0.5); 
+            rects = Helper_Utils.nms(rects, 0.5); 
             
             % Display the top 4 detections if asked
             if exist('shldDisplay', 'var') && shldDisplay                
                 imshow(im);            
-                HW4_Utils.drawRects(rects(:,1:4));
+                Helper_Utils.drawRects(rects(:,1:4));
             end;
         end;
         
@@ -153,14 +153,14 @@ classdef HW4_Utils
         % dataset: either 'train', 'val', or 'test'
         % outFile: path to save the result.
         function genRsltFile(w, b, dataset, outFile)
-            imFiles = ml_getFilesInDir(sprintf('%s/%sIms/', HW4_Utils.dataDir, dataset), 'jpg');
+            imFiles = ml_getFilesInDir(sprintf('%s/%sIms/', Helper_Utils.dataDir, dataset), 'jpg');
             nIm = length(imFiles);            
             rects = cell(1, nIm);
             startT = tic;
             for i=1:nIm
                 ml_progressBar(i, nIm, 'Ub detection', startT);
                 im = imread(imFiles{i});
-                rects{i} = HW4_Utils.detect(im, w, b);                                
+                rects{i} = Helper_Utils.detect(im, w, b);                                
             end
             save(outFile, 'rects');
             fprintf('results have been saved to %s\n', outFile);
@@ -171,7 +171,7 @@ classdef HW4_Utils
         % Calculate the Average precision for a given result file and dataset
         % This requires the annotation file is available for the dataset. 
         function [ap, prec, rec] = cmpAP(rsltFile, dataset)
-            load(sprintf('%s/%sAnno.mat', HW4_Utils.dataDir, dataset), 'ubAnno');
+            load(sprintf('%s/%sAnno.mat', Helper_Utils.dataDir, dataset), 'ubAnno');
             load(rsltFile, 'rects');
             
             if length(rects) ~= length(ubAnno)
@@ -188,7 +188,7 @@ classdef HW4_Utils
                 isTruePos_i = -ones(1, size(rects_i, 2));
                 for j=1:size(ubs_i,2)
                     ub = ubs_i(:,j);
-                    overlap = HW4_Utils.rectOverlap(rects_i, ub);
+                    overlap = Helper_Utils.rectOverlap(rects_i, ub);
                     isTruePos_i(overlap >= 0.5) = 1;
                 end;
                 isTruePos{i} = isTruePos_i;
@@ -209,12 +209,12 @@ classdef HW4_Utils
         %   imRegs: 64*64*3*n array for n images
         function [D, lb, imRegs] = getPosAndRandomNegHelper(dataset)
             rng(1234,'twister'); % reset random generator. Keep same seed for repeatability
-            load(sprintf('%s/%sAnno.mat', HW4_Utils.dataDir, dataset), 'ubAnno');
+            load(sprintf('%s/%sAnno.mat', Helper_Utils.dataDir, dataset), 'ubAnno');
             [posD, negD, posRegs, negRegs] = deal(cell(1, length(ubAnno)));            
             
             for i=1:length(ubAnno)
                 ml_progressBar(i, length(ubAnno), 'Processing image');
-                im = imread(sprintf('%s/%sIms/%04d.jpg', HW4_Utils.dataDir, dataset, i));
+                im = imread(sprintf('%s/%sIms/%04d.jpg', Helper_Utils.dataDir, dataset, i));
                 %im = rgb2gray(im);
                 ubs = ubAnno{i}; % annotated upper body
                 if ~isempty(ubs)
@@ -222,8 +222,8 @@ classdef HW4_Utils
                     for j=1:length(D_i)
                         ub = ubs(:,j);
                         imReg = im(ub(2):ub(4), ub(1):ub(3),:);
-                        imReg = imresize(imReg, HW4_Utils.normImSz);
-                        D_i{j} = HW4_Utils.cmpFeat(rgb2gray(imReg));
+                        imReg = imresize(imReg, Helper_Utils.normImSz);
+                        D_i{j} = Helper_Utils.cmpFeat(rgb2gray(imReg));
                         R_i{j} = imReg;
                     end 
                     posD{i}    = cat(2, D_i{:});                    
@@ -245,7 +245,7 @@ classdef HW4_Utils
                 
                 % Remove random rects that overlap more than 30% with an annotated upper body
                 for j=1:size(ubs,2)
-                    overlap = HW4_Utils.rectOverlap(randRects, ubs(:,j));                    
+                    overlap = Helper_Utils.rectOverlap(randRects, ubs(:,j));                    
                     randRects = randRects(:, overlap < 0.3);
                     if isempty(randRects)
                         break;
@@ -257,9 +257,9 @@ classdef HW4_Utils
                 [D_i, R_i] = deal(cell(1, nNeg2SamplePerIm));
                 for j=1:nNeg2SamplePerIm
                     imReg = im(randRects(2,j):randRects(4,j), randRects(1,j):randRects(3,j),:);
-                    imReg = imresize(imReg, HW4_Utils.normImSz);
+                    imReg = imresize(imReg, Helper_Utils.normImSz);
                     R_i{j} = imReg;
-                    D_i{j} = HW4_Utils.cmpFeat(rgb2gray(imReg));                    
+                    D_i{j} = Helper_Utils.cmpFeat(rgb2gray(imReg));                    
                 end
                 negD{i} = cat(2, D_i{:});                
                 negRegs{i} = cat(4, R_i{:});
@@ -314,7 +314,7 @@ classdef HW4_Utils
         % Compute feature vector for an image patch
         % Here we use HOG feature, using vl_hog
         function featVec = cmpFeat(imReg)
-            featVec = vl_hog(im2single(imReg), HW4_Utils.hogCellSz);            
+            featVec = vl_hog(im2single(imReg), Helper_Utils.hogCellSz);            
             featVec = featVec(:);
         end;
         
@@ -385,8 +385,8 @@ classdef HW4_Utils
         % same as detect, but more general and slower. It compute feature vector for each region
         % separately; it does not assume the characteristics of HOG feature image.
         function rects = detect_slow(im, w, b) 
-            winSz = HW4_Utils.normImSz;
-            stepSz = ceil(HW4_Utils.normImSz/8);
+            winSz = Helper_Utils.normImSz;
+            stepSz = ceil(Helper_Utils.normImSz/8);
             
             smallestUbSize = 45; % desired smallest upper body size we can detect
             biggestUbSize = 310; % desired biggest  upper body size we can detect
@@ -420,10 +420,10 @@ classdef HW4_Utils
                     imRegs = reshape(imRegs, winSz(1), winSz(2), size(imRegs,2));
                     D = cell(1, size(imRegs,3));
                     for j=1:size(imRegs,3)
-                        D{j} = HW4_Utils.cmpFeat(imRegs(:,:,j));                         
+                        D{j} = Helper_Utils.cmpFeat(imRegs(:,:,j));                         
                     end;
                     D = cat(2, D{:});
-                    D = HW4_Utils.l2Norm(D);
+                    D = Helper_Utils.l2Norm(D);
                     scores_s{i} = D'*w + b;
                 end;
                 scores_s   = cat(1, scores_s{:});
@@ -433,7 +433,7 @@ classdef HW4_Utils
                 rects{s} = [rects_s; scores_s'];
             end
             rects = cat(2, rects{:});    
-            rects = HW4_Utils.nms(rects, 0.5); 
+            rects = Helper_Utils.nms(rects, 0.5); 
             
         end;
     end    
